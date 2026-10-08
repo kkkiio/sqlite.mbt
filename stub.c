@@ -14,6 +14,18 @@ static char* bytes_to_cstring(moonbit_bytes_t bytes) {
     return str;
 }
 
+// C strings returned by SQLite are borrowed or sqlite3-owned. MoonBit Bytes
+// must always point at a MoonBit allocation with its own length header.
+static moonbit_bytes_t copy_cstring(const char* value) {
+    if (value == NULL) {
+        return moonbit_make_bytes(0, 0);
+    }
+    size_t len = strlen(value);
+    moonbit_bytes_t result = moonbit_make_bytes((int32_t)len, 0);
+    memcpy(result, value, len);
+    return result;
+}
+
 // Open database (returns db on success, NULL on failure)
 sqlite3* sqlite_open(moonbit_bytes_t filename) {
     char* fname = bytes_to_cstring(filename);
@@ -144,8 +156,8 @@ int32_t sqlite_errcode(sqlite3* db) {
     return sqlite3_errcode(db);
 }
 
-const char* sqlite_errmsg(sqlite3* db) {
-    return sqlite3_errmsg(db);
+moonbit_bytes_t sqlite_errmsg(sqlite3* db) {
+    return copy_cstring(sqlite3_errmsg(db));
 }
 
 // Additional bind functions
@@ -239,9 +251,8 @@ int32_t sqlite_total_changes(sqlite3* db) {
 }
 
 // Statement introspection
-const char* sqlite_sql(sqlite3_stmt* stmt) {
-    const char* sql = sqlite3_sql(stmt);
-    return sql ? sql : "";
+moonbit_bytes_t sqlite_sql(sqlite3_stmt* stmt) {
+    return copy_cstring(sqlite3_sql(stmt));
 }
 
 int32_t sqlite_bind_parameter_count(sqlite3_stmt* stmt) {
@@ -257,31 +268,12 @@ int32_t sqlite_extended_errcode(sqlite3* db) {
     return sqlite3_extended_errcode(db);
 }
 
-// Copy error string to global buffer (static storage)
-// Note: sqlite3_errstr returns static string, so we copy it
-static char errstr_buffer[256];
-
-const char* sqlite_errstr(int32_t errcode) {
-    const char* msg = sqlite3_errstr(errcode);
-    if (msg) {
-        strncpy(errstr_buffer, msg, sizeof(errstr_buffer) - 1);
-        errstr_buffer[sizeof(errstr_buffer) - 1] = '\0';
-        return errstr_buffer;
-    }
-    return "";
+moonbit_bytes_t sqlite_errstr(int32_t errcode) {
+    return copy_cstring(sqlite3_errstr(errcode));
 }
 
-// Get parameter name (copy static string to buffer)
-static char param_name_buffer[256];
-
-const char* sqlite_bind_parameter_name(sqlite3_stmt* stmt, int32_t idx) {
-    const char* name = sqlite3_bind_parameter_name(stmt, idx);
-    if (name) {
-        strncpy(param_name_buffer, name, sizeof(param_name_buffer) - 1);
-        param_name_buffer[sizeof(param_name_buffer) - 1] = '\0';
-        return param_name_buffer;
-    }
-    return "";
+moonbit_bytes_t sqlite_bind_parameter_name(sqlite3_stmt* stmt, int32_t idx) {
+    return copy_cstring(sqlite3_bind_parameter_name(stmt, idx));
 }
 
 int32_t sqlite_bind_parameter_index(sqlite3_stmt* stmt, moonbit_bytes_t name) {
@@ -291,20 +283,11 @@ int32_t sqlite_bind_parameter_index(sqlite3_stmt* stmt, moonbit_bytes_t name) {
     return idx;
 }
 
-// Get database filename (copy static string to buffer)
-static char db_filename_buffer[512];
-
-const char* sqlite_db_filename(sqlite3* db, moonbit_bytes_t dbname) {
+moonbit_bytes_t sqlite_db_filename(sqlite3* db, moonbit_bytes_t dbname) {
     char* dbname_str = bytes_to_cstring(dbname);
     const char* filename = sqlite3_db_filename(db, dbname_str);
     free(dbname_str);
-
-    if (filename) {
-        strncpy(db_filename_buffer, filename, sizeof(db_filename_buffer) - 1);
-        db_filename_buffer[sizeof(db_filename_buffer) - 1] = '\0';
-        return db_filename_buffer;
-    }
-    return "";
+    return copy_cstring(filename);
 }
 
 int32_t sqlite_db_readonly(sqlite3* db, moonbit_bytes_t dbname) {
@@ -314,18 +297,14 @@ int32_t sqlite_db_readonly(sqlite3* db, moonbit_bytes_t dbname) {
     return readonly;
 }
 
-// Get expanded SQL (dynamically allocated string)
-static char expanded_sql_buffer[1024];
-
-const char* sqlite_expanded_sql(sqlite3_stmt* stmt) {
+moonbit_bytes_t sqlite_expanded_sql(sqlite3_stmt* stmt) {
     char* sql = sqlite3_expanded_sql(stmt);
-    if (sql) {
-        strncpy(expanded_sql_buffer, sql, sizeof(expanded_sql_buffer) - 1);
-        expanded_sql_buffer[sizeof(expanded_sql_buffer) - 1] = '\0';
-        sqlite3_free(sql);  // Important: free dynamically allocated string
-        return expanded_sql_buffer;
+    if (sql == NULL) {
+        return moonbit_make_bytes(0, 0);
     }
-    return "";
+    moonbit_bytes_t result = copy_cstring(sql);
+    sqlite3_free(sql);
+    return result;
 }
 
 // Interrupt running query

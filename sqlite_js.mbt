@@ -59,8 +59,13 @@ extern "js" fn to_any_stmt(v : NodeStatementSync) -> JsAny =
 
 ///|
 #borrow(v)
-extern "js" fn from_any_array(v : JsAny) -> Array[JsAny] =
+extern "js" fn from_any_array_ffi(v : JsAny) -> FixedArray[JsAny] =
   #| (v) => v
+
+///|
+fn from_any_array(v : JsAny) -> Array[JsAny] {
+  Array::from_fixed_array(from_any_array_ffi(v))
+}
 
 ///|
 pub fn NodeStatementSync::run(
@@ -158,7 +163,7 @@ priv struct StatementState {
 
 ///|
 fn statement_state_new(stmt : NodeStatementSync) -> StatementState {
-  { stmt, bound: [], rows: [], row_index: 0, current_row: None, done: false }
+  { stmt, bound: [], rows: [], row_index: 0, current_row: None, done: false, }
 }
 
 ///|
@@ -181,16 +186,20 @@ fn statement_reset_state(state : StatementState) -> Unit {
 ///|
 pub struct Database {
   priv db : NodeDatabaseSync
+  priv mut closed : Bool
 }
 
 ///|
 pub fn Database::open(path : String) -> Database? {
-  Some({ db: NodeDatabaseSync::new(path, returnArrays=true) })
+  Some({ db: NodeDatabaseSync::new(path, returnArrays=true), closed: false, })
 }
 
 ///|
 pub fn Database::close(self : Database) -> Unit {
-  self.db.close()
+  if !self.closed {
+    self.db.close()
+    self.closed = true
+  }
 }
 
 ///|
@@ -201,7 +210,7 @@ pub fn Database::exec(self : Database, sql : String) -> Bool {
 
 ///|
 pub fn Database::prepare(self : Database, sql : String) -> Statement? {
-  Some({ state: statement_state_new(self.db.prepare(sql)) })
+  Some({ state: statement_state_new(self.db.prepare(sql)), finalized: false, })
 }
 
 ///|
@@ -330,6 +339,7 @@ pub fn Database::rollback_to(self : Database, name : String) -> Bool {
 ///|
 pub struct Statement {
   priv state : StatementState
+  priv mut finalized : Bool
 }
 
 ///|
@@ -442,7 +452,10 @@ pub fn Statement::reset(self : Statement) -> Unit {
 
 ///|
 pub fn Statement::finalize(self : Statement) -> Unit {
-  statement_reset_state(self.state)
+  if !self.finalized {
+    statement_reset_state(self.state)
+    self.finalized = true
+  }
 }
 
 ///|

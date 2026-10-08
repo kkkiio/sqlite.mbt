@@ -3,9 +3,11 @@
 // Opaque external types (corresponding to C pointers)
 
 ///|
+#external
 type Sqlite3
 
 ///|
+#external
 type Sqlite3Stmt
 
 // Low-level extern declarations
@@ -346,6 +348,7 @@ fn cstring(s : String) -> Bytes {
 ///|
 pub struct Database {
   priv handle : Sqlite3
+  priv mut closed : Bool
 }
 
 ///|
@@ -354,13 +357,16 @@ pub fn Database::open(path : String) -> Database? {
   if sqlite_is_null(db) == 1 {
     None
   } else {
-    Some({ handle: db })
+    Some({ handle: db, closed: false, })
   }
 }
 
 ///|
 pub fn Database::close(self : Database) -> Unit {
-  sqlite_close(self.handle)
+  if !self.closed {
+    sqlite_close(self.handle)
+    self.closed = true
+  }
 }
 
 ///|
@@ -374,7 +380,7 @@ pub fn Database::prepare(self : Database, sql : String) -> Statement? {
   if sqlite_stmt_is_null(stmt) == 1 {
     None
   } else {
-    Some({ stmt, done: false })
+    Some({ stmt, done: false, finalized: false, })
   }
 }
 
@@ -469,6 +475,7 @@ pub fn Database::rollback_to(self : Database, name : String) -> Bool {
 pub struct Statement {
   priv stmt : Sqlite3Stmt
   priv mut done : Bool
+  priv mut finalized : Bool
 }
 
 ///|
@@ -561,7 +568,11 @@ pub fn Statement::reset(self : Statement) -> Unit {
 
 ///|
 pub fn Statement::finalize(self : Statement) -> Unit {
-  sqlite_finalize(self.stmt)
+  if !self.finalized {
+    sqlite_finalize(self.stmt)
+    self.finalized = true
+    self.done = true
+  }
 }
 
 ///|

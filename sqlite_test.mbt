@@ -61,8 +61,21 @@ test "basic: select multiple rows" {
   while stmt.step() {
     names.push(bytes_to_str(stmt.column_text(0)))
   }
-  inspect(names, content="[\"Alice\", \"Bob\", \"Charlie\"]")
+  assert_eq(names.length(), 3)
+  assert_eq(names[0], "Alice")
+  assert_eq(names[1], "Bob")
+  assert_eq(names[2], "Charlie")
   stmt.finalize()
+  db.close()
+}
+
+///|
+test "lifecycle: repeated finalize and close are safe" {
+  let db = Database::open(":memory:").unwrap()
+  let stmt = db.prepare("SELECT 1").unwrap()
+  stmt.finalize()
+  stmt.finalize()
+  db.close()
   db.close()
 }
 
