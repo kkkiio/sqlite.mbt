@@ -71,12 +71,12 @@ The following features initially had SIGBUS/infinite loop issues but have been r
 1. **`sqlite3_extended_errcode` + `sqlite3_errstr`** ✅
    - Problem: SIGBUS error
    - Cause: Attempting to directly convert static string pointers returned by SQLite to MoonBit's `Bytes` type caused memory access violations
-   - Solution: Copy static strings to a global buffer (`static char errstr_buffer[256]`) before returning
+   - Solution: Allocate a MoonBit-owned `Bytes` with `moonbit_make_bytes` and copy the SQLite string into it before returning. A raw C buffer is not a MoonBit byte array.
 
 2. **`sqlite3_bind_parameter_name` + `sqlite3_bind_parameter_index`** ✅
    - Problem: Infinite loop or hang
    - Cause: Same issue with direct conversion of static strings
-   - Solution: Copy static strings to a global buffer (`static char param_name_buffer[256]`) before returning
+   - Solution: Return an allocated MoonBit byte array rather than a pointer to SQLite-owned memory or a static buffer.
 
 ### Lessons Learned
 
@@ -84,16 +84,15 @@ The following features initially had SIGBUS/infinite loop issues but have been r
 
 1. **Dynamically generated strings (tied to database handle/statement)**
    - Examples: `sqlite3_column_text`, `sqlite3_errmsg`
-   - Direct return of `const char*` is fine (MoonBit handles it properly)
+   - Copy into MoonBit-owned bytes. For column text, use SQLite's byte count; embedded NUL bytes must not truncate the value.
 
 2. **Static strings (global constant strings)**
    - Examples: `sqlite3_errstr`, `sqlite3_bind_parameter_name`
-   - **Must be copied to a buffer before returning**
-   - Example: `strncpy(buffer, src, size); return buffer;`
+   - Copy into bytes allocated with `moonbit_make_bytes`, just like dynamic strings. Copying into a static C buffer does not fix the ABI mismatch.
 
 3. **NULL handling**
-   - When NULL is possible, return empty string `""`
-   - Example: `return name ? name : "";`
+   - Return a zero-length MoonBit byte array when this API represents NULL as empty text. Never return the C string literal `""` as MoonBit `Bytes`.
+   - SQL NULL values are still represented separately by `SqlValue::Null`.
 
 ## Writing Benchmarks
 
