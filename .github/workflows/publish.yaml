@@ -1,0 +1,39 @@
+name: Publish
+
+# Draft a GitHub release for tag vX.Y.Z, review it, then publish it to run this.
+on:
+  release:
+    types: [released]
+
+jobs:
+  check:
+    uses: ./.github/workflows/check.yaml
+
+  publish:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check tag matches moon.mod version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' moon.mod)
+          if [ "v$version" != "$TAG" ]; then
+            echo "Release tag $TAG does not match moon.mod version $version" >&2
+            exit 1
+          fi
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+      - name: Install MoonBit CLI
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Moon update
+        run: moon update
+      - name: Publish
+        run: |
+          echo "$SECRET" > ~/.moon/credentials.json
+          moon publish
+          rm ~/.moon/credentials.json
+        env:
+          SECRET: ${{ secrets.MOONCAKES_TOKEN }}
