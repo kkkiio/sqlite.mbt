@@ -1,4 +1,4 @@
-# Project CLAUDE.md Guide
+# Project AGENTS.md Guide
 
 This is a [MoonBit](https://docs.moonbitlang.com) project.
 
@@ -12,19 +12,21 @@ This project uses C language bindings via MoonBit's C-FFI feature.
 
 **Key files:**
 - `stub.c` - C wrapper functions that MoonBit calls via `extern "C"`
-- `moon.pkg.json` - Contains `"native-stub": ["stub.c"]` to include C source
+- `moon.pkg` - Contains `"native-stub": [ "stub.c" ]` to include C source
 
 **How it works:**
 1. MoonBit declares external C functions: `extern "C" fn name(args) -> Type = "c_func_name"`
 2. C implementations are provided in `stub.c`
-3. `moon build --target native` compiles MoonBit to C, then links with `stub.c`
+3. `moon test --target native` compiles MoonBit to C, then links with `stub.c` and `-lsqlite3`
+
+`moon build --target native` fails with an undefined `_main`: the object-valued `link` option in `moon.pkg` (needed so tests link `-lsqlite3`) makes moon link this library as an executable. Use `moon check` / `moon test` instead.
 
 **Commands:**
 ```bash
-moon build --target native   # Build executable
-moon run . --target native   # Run the program
-moon test --target native    # Run tests
-moon bench --target native   # Run benchmarks
+moon check --deny-warn --target native   # Lint (CI also runs this for js)
+moon test --target native                # Run tests (also: --target js)
+moon -C example run . --target native    # Run the example executable
+moon bench --target native               # Run benchmarks
 ```
 
 **Type mapping (MoonBit → C):**
@@ -36,9 +38,9 @@ moon bench --target native   # Run benchmarks
 
 ## Project Structure
 
-- MoonBit packages are organized per directory. Each directory contains a `moon.pkg.json` file listing its dependencies. Each package has its files and blackbox test files (ending in `_test.mbt`) and whitebox test files (ending in `_wbtest.mbt`).
+- MoonBit packages are organized per directory. Each directory contains a `moon.pkg` file listing its dependencies. Each package has its files and blackbox test files (ending in `_test.mbt`) and whitebox test files (ending in `_wbtest.mbt`).
 
-- In the top-level directory, there is a `moon.mod.json` file with module information and metadata.
+- In the top-level directory, there is a `moon.mod` file with module information and metadata. Published files are controlled by `.moonignore`.
 
 ## Coding Convention
 
@@ -60,7 +62,7 @@ moon bench --target native   # Run benchmarks
 
 - When writing tests, use `inspect` and run `moon test --update` to update snapshots. Only use assertions like `assert_eq` when you are in loops where each snapshot may vary. You can use `moon coverage analyze > uncovered.log` to see which parts of your code are not covered by tests.
 
-- CLAUDE.md has some small tasks that are easy for AI to pick up. Agents are welcome to finish the tasks and check the box when done.
+- AGENTS.md has some small tasks that are easy for AI to pick up. Agents are welcome to finish the tasks and check the box when done.
 
 ## Resolved Issues
 
@@ -71,12 +73,12 @@ The following features initially had SIGBUS/infinite loop issues but have been r
 1. **`sqlite3_extended_errcode` + `sqlite3_errstr`** ✅
    - Problem: SIGBUS error
    - Cause: Attempting to directly convert static string pointers returned by SQLite to MoonBit's `Bytes` type caused memory access violations
-   - Solution: Copy static strings to a global buffer (`static char errstr_buffer[256]`) before returning
+   - Solution: Allocate a MoonBit-owned `Bytes` with `moonbit_make_bytes` and copy the SQLite string into it before returning. A raw C buffer is not a MoonBit byte array.
 
 2. **`sqlite3_bind_parameter_name` + `sqlite3_bind_parameter_index`** ✅
    - Problem: Infinite loop or hang
    - Cause: Same issue with direct conversion of static strings
-   - Solution: Copy static strings to a global buffer (`static char param_name_buffer[256]`) before returning
+   - Solution: Return an allocated MoonBit byte array rather than a pointer to SQLite-owned memory or a static buffer.
 
 ### Lessons Learned
 
@@ -84,16 +86,15 @@ The following features initially had SIGBUS/infinite loop issues but have been r
 
 1. **Dynamically generated strings (tied to database handle/statement)**
    - Examples: `sqlite3_column_text`, `sqlite3_errmsg`
-   - Direct return of `const char*` is fine (MoonBit handles it properly)
+   - Copy into MoonBit-owned bytes. For column text, use SQLite's byte count; embedded NUL bytes must not truncate the value.
 
 2. **Static strings (global constant strings)**
    - Examples: `sqlite3_errstr`, `sqlite3_bind_parameter_name`
-   - **Must be copied to a buffer before returning**
-   - Example: `strncpy(buffer, src, size); return buffer;`
+   - Copy into bytes allocated with `moonbit_make_bytes`, just like dynamic strings. Copying into a static C buffer does not fix the ABI mismatch.
 
 3. **NULL handling**
-   - When NULL is possible, return empty string `""`
-   - Example: `return name ? name : "";`
+   - Return a zero-length MoonBit byte array when this API represents NULL as empty text. Never return the C string literal `""` as MoonBit `Bytes`.
+   - SQL NULL values are still represented separately by `SqlValue::Null`.
 
 ## Writing Benchmarks
 

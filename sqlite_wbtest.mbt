@@ -398,3 +398,61 @@ test "sqlite_limit" {
   assert_true(column_limit > 0)
   sqlite_close(db)
 }
+
+///|
+test "ffi returned text is owned and retained" {
+  let db = sqlite_open(cstring(":memory:"))
+  let _ = sqlite_exec(db, cstring("INVALID SQL"))
+  let errmsg = sqlite_errmsg(db)
+  let errstr = sqlite_errstr(sqlite_errcode(db))
+  let stmt = sqlite_prepare(db, cstring("SELECT :value AS retained_name"))
+  let sql = sqlite_sql(stmt)
+  let parameter_name = sqlite_bind_parameter_name(stmt, 1)
+  let column_name = sqlite_column_name(stmt, 0)
+  let _ = sqlite_bind_text(stmt, 1, cstring("retained value"))
+  let expanded = sqlite_expanded_sql(stmt)
+  let missing_parameter = sqlite_bind_parameter_name(stmt, 2)
+  let missing_filename = sqlite_db_filename(db, cstring("missing"))
+  let _ = sqlite_exec(db, cstring("SELECT * FROM missing_table"))
+  sqlite_finalize(stmt)
+  sqlite_close(db)
+  debug_inspect(
+    [
+      errmsg, errstr, sql, parameter_name, column_name, expanded, missing_parameter,
+      missing_filename,
+    ].map(b => @encoding.decoder(UTF8).decode_lossy(b[:])),
+    content=(
+      #|[
+      #|  "near \"INVALID\": syntax error",
+      #|  "SQL logic error",
+      #|  "SELECT :value AS retained_name",
+      #|  ":value",
+      #|  "retained_name",
+      #|  "SELECT 'retained value' AS retained_name",
+      #|  "",
+      #|  "",
+      #|]
+    ),
+  )
+}
+
+///|
+test "system sqlite supports fts5" {
+  let db = sqlite_open(cstring(":memory:"))
+  let _ = sqlite_exec(
+    db,
+    cstring("CREATE VIRTUAL TABLE pages USING fts5(title, body)"),
+  )
+  let _ = sqlite_exec(
+    db,
+    cstring("INSERT INTO pages VALUES ('Hollow Knight', 'Hallownest')"),
+  )
+  let stmt = sqlite_prepare(
+    db,
+    cstring("SELECT title FROM pages WHERE pages MATCH 'Hallownest'"),
+  )
+  inspect(sqlite_step(stmt), content="100")
+  inspect(sqlite_column_text(stmt, 0), content="b\"Hollow Knight\"")
+  sqlite_finalize(stmt)
+  sqlite_close(db)
+}

@@ -91,24 +91,24 @@ pub extern "js" fn js_set(obj : JsAny, key : String, value : JsAny) -> Unit =
   #| (obj, key, value) => { obj[key] = value }
 
 ///|
-#borrow(obj, method)
-pub extern "js" fn js_call0(obj : JsAny, method : String) -> JsAny =
-  #| (obj, method) => obj[method]()
+#borrow(obj, name)
+pub extern "js" fn js_call0(obj : JsAny, name : String) -> JsAny =
+  #| (obj, name) => obj[name]()
 
 ///|
-#borrow(obj, method, arg)
-pub extern "js" fn js_call1(obj : JsAny, method : String, arg : JsAny) -> JsAny =
-  #| (obj, method, arg) => obj[method](arg)
+#borrow(obj, name, arg)
+pub extern "js" fn js_call1(obj : JsAny, name : String, arg : JsAny) -> JsAny =
+  #| (obj, name, arg) => obj[name](arg)
 
 ///|
-#borrow(obj, method, a1, a2)
+#borrow(obj, name, a1, a2)
 pub extern "js" fn js_call2(
   obj : JsAny,
-  method : String,
+  name : String,
   a1 : JsAny,
   a2 : JsAny,
 ) -> JsAny =
-  #| (obj, method, a1, a2) => obj[method](a1, a2)
+  #| (obj, name, a1, a2) => obj[name](a1, a2)
 
 ///|
 pub extern "js" fn js_new_object() -> JsAny =
