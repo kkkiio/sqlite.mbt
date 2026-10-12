@@ -82,6 +82,14 @@ test "lifecycle: repeated finalize and close are safe" {
 }
 
 ///|
+test "lifecycle: close before finalize is safe" {
+  let db = @sqlite.Database::open(":memory:").unwrap()
+  let stmt = db.prepare("SELECT 1").unwrap()
+  db.close()
+  stmt.finalize()
+}
+
+///|
 test "basic: bind parameters" {
   let db = @sqlite.Database::open(":memory:").unwrap()
   db.exec("CREATE TABLE test (id INTEGER PRIMARY KEY, value INTEGER)") |> ignore

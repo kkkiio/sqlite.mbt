@@ -69,9 +69,10 @@ int32_t sqlite_stmt_is_null(sqlite3_stmt* ptr) {
     return ptr == NULL ? 1 : 0;
 }
 
-// Close database
+// Close database. sqlite3_close_v2 never fails with SQLITE_BUSY: if statements
+// are still unfinalized, the connection is released when the last one is.
 void sqlite_close(sqlite3* db) {
-    sqlite3_close(db);
+    sqlite3_close_v2(db);
 }
 
 // Execute SQL (no result). Returns 0 on success
