@@ -2,6 +2,15 @@
 
 This is a [MoonBit](https://docs.moonbitlang.com) project.
 
+## Reference Project
+
+Use [moonbit-community/sqlite3.mbt](https://github.com/moonbit-community/sqlite3.mbt) as the quality bar for FFI, resource lifecycle, and error handling; see [docs/compare-sqlite3-mbt.md](docs/compare-sqlite3-mbt.md) for where to look and the intentional differences.
+
+## Release
+
+1. Bump `version` in `moon.mod` (and the `KKKIIO/sqlite@...` import in `example/moon.mod`), open a PR, merge after CI passes.
+2. `gh release create vX.Y.Z --target main --draft --generate-notes`, then review the notes on GitHub.
+
 ## Native Target
 
 This project targets **native** (not wasm-gc). All build and test commands must include `--target native`.
