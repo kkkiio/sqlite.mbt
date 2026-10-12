@@ -207,20 +207,8 @@ int32_t sqlite_column_count(sqlite3_stmt* stmt) {
     return sqlite3_column_count(stmt);
 }
 
-// Return a MoonBit-owned copy of the column name. Plain `const char*`
-// passed back as moonbit_bytes_t is UB — Bytes reads a length prefix
-// before the pointer, so the caller hits random memory. Copy into a
-// proper moonbit_make_bytes(len) buffer instead (same pattern as
-// sqlite_column_text above).
 moonbit_bytes_t sqlite_column_name(sqlite3_stmt* stmt, int32_t col) {
-    const char* name = sqlite3_column_name(stmt, col);
-    if (!name) {
-        return moonbit_make_bytes(0, 0);
-    }
-    int32_t len = (int32_t)strlen(name);
-    moonbit_bytes_t result = moonbit_make_bytes(len, 0);
-    memcpy(result, name, (size_t)len);
-    return result;
+    return copy_cstring(sqlite3_column_name(stmt, col));
 }
 
 int32_t sqlite_changes(sqlite3* db) {
@@ -299,9 +287,6 @@ int32_t sqlite_db_readonly(sqlite3* db, moonbit_bytes_t dbname) {
 
 moonbit_bytes_t sqlite_expanded_sql(sqlite3_stmt* stmt) {
     char* sql = sqlite3_expanded_sql(stmt);
-    if (sql == NULL) {
-        return moonbit_make_bytes(0, 0);
-    }
     moonbit_bytes_t result = copy_cstring(sql);
     sqlite3_free(sql);
     return result;

@@ -402,7 +402,7 @@ test "sqlite_limit" {
 ///|
 test "ffi returned text is owned and retained" {
   let db = sqlite_open(cstring(":memory:"))
-  let _ = sqlite_exec(db, cstring("INVALID SQL ONE"))
+  let _ = sqlite_exec(db, cstring("INVALID SQL"))
   let errmsg = sqlite_errmsg(db)
   let errstr = sqlite_errstr(sqlite_errcode(db))
   let stmt = sqlite_prepare(db, cstring("SELECT :value AS retained_name"))
@@ -413,54 +413,46 @@ test "ffi returned text is owned and retained" {
   let expanded = sqlite_expanded_sql(stmt)
   let missing_parameter = sqlite_bind_parameter_name(stmt, 2)
   let missing_filename = sqlite_db_filename(db, cstring("missing"))
-  let _ = sqlite_exec(db, cstring("INVALID SQL TWO"))
+  let _ = sqlite_exec(db, cstring("SELECT * FROM missing_table"))
   sqlite_finalize(stmt)
-  assert_true(@encoding.decoder(UTF8).decode_lossy(errmsg[:]).length() > 0)
-  assert_true(@encoding.decoder(UTF8).decode_lossy(errstr[:]).length() > 0)
-  assert_eq(
-    @encoding.decoder(UTF8).decode_lossy(sql[:]),
-    "SELECT :value AS retained_name",
-  )
-  assert_eq(@encoding.decoder(UTF8).decode_lossy(parameter_name[:]), ":value")
-  assert_eq(
-    @encoding.decoder(UTF8).decode_lossy(column_name[:]),
-    "retained_name",
-  )
-  assert_eq(
-    @encoding.decoder(UTF8).decode_lossy(expanded[:]),
-    "SELECT 'retained value' AS retained_name",
-  )
-  assert_eq(missing_parameter.length(), 0)
-  assert_eq(missing_filename.length(), 0)
   sqlite_close(db)
+  debug_inspect(
+    [
+      errmsg, errstr, sql, parameter_name, column_name, expanded, missing_parameter,
+      missing_filename,
+    ].map(b => @encoding.decoder(UTF8).decode_lossy(b[:])),
+    content=(
+      #|[
+      #|  "near \"INVALID\": syntax error",
+      #|  "SQL logic error",
+      #|  "SELECT :value AS retained_name",
+      #|  ":value",
+      #|  "retained_name",
+      #|  "SELECT 'retained value' AS retained_name",
+      #|  "",
+      #|  "",
+      #|]
+    ),
+  )
 }
 
 ///|
 test "system sqlite supports fts5" {
   let db = sqlite_open(cstring(":memory:"))
-  assert_eq(
-    sqlite_exec(
-      db,
-      cstring("CREATE VIRTUAL TABLE pages USING fts5(title, body)"),
-    ),
-    SQLITE_OK,
+  let _ = sqlite_exec(
+    db,
+    cstring("CREATE VIRTUAL TABLE pages USING fts5(title, body)"),
   )
-  assert_eq(
-    sqlite_exec(
-      db,
-      cstring("INSERT INTO pages VALUES ('Hollow Knight', 'Hallownest')"),
-    ),
-    SQLITE_OK,
+  let _ = sqlite_exec(
+    db,
+    cstring("INSERT INTO pages VALUES ('Hollow Knight', 'Hallownest')"),
   )
   let stmt = sqlite_prepare(
     db,
     cstring("SELECT title FROM pages WHERE pages MATCH 'Hallownest'"),
   )
-  assert_eq(sqlite_step(stmt), SQLITE_ROW)
-  assert_eq(
-    @encoding.decoder(UTF8).decode_lossy(sqlite_column_text(stmt, 0)[:]),
-    "Hollow Knight",
-  )
+  inspect(sqlite_step(stmt), content="100")
+  inspect(sqlite_column_text(stmt, 0), content="b\"Hollow Knight\"")
   sqlite_finalize(stmt)
   sqlite_close(db)
 }

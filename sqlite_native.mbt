@@ -11,7 +11,8 @@ type Sqlite3
 type Sqlite3Stmt
 
 // Low-level extern declarations
-// #borrow: Treats arguments as borrowed, MoonBit automatically manages memory
+// #borrow is only needed for reference-counted params such as Bytes;
+// #external types are not reference counted.
 
 ///|
 #borrow(filename)
@@ -26,31 +27,26 @@ pub extern "C" fn sqlite_open_v2(
 ) -> Sqlite3 = "sqlite_open_v2"
 
 ///|
-#borrow(ptr)
 extern "C" fn sqlite_is_null(ptr : Sqlite3) -> Int = "sqlite_is_null"
 
 ///|
-#borrow(db)
 extern "C" fn sqlite_close(db : Sqlite3) -> Unit = "sqlite_close"
 
 ///|
-#borrow(db, sql)
+#borrow(sql)
 extern "C" fn sqlite_exec(db : Sqlite3, sql : Bytes) -> Int = "sqlite_exec"
 
 ///|
-#borrow(db, sql)
+#borrow(sql)
 pub extern "C" fn sqlite_prepare(db : Sqlite3, sql : Bytes) -> Sqlite3Stmt = "sqlite_prepare"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_stmt_is_null(stmt : Sqlite3Stmt) -> Int = "sqlite_stmt_is_null"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_finalize(stmt : Sqlite3Stmt) -> Unit = "sqlite_finalize"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_bind_int(
   stmt : Sqlite3Stmt,
   idx : Int,
@@ -58,7 +54,7 @@ pub extern "C" fn sqlite_bind_int(
 ) -> Int = "sqlite_bind_int"
 
 ///|
-#borrow(stmt, text)
+#borrow(text)
 pub extern "C" fn sqlite_bind_text(
   stmt : Sqlite3Stmt,
   idx : Int,
@@ -66,33 +62,26 @@ pub extern "C" fn sqlite_bind_text(
 ) -> Int = "sqlite_bind_text"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_step(stmt : Sqlite3Stmt) -> Int = "sqlite_step"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_int(stmt : Sqlite3Stmt, col : Int) -> Int = "sqlite_column_int"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_text(stmt : Sqlite3Stmt, col : Int) -> Bytes = "sqlite_column_text"
 
 ///|
-#borrow(stmt)
 extern "C" fn sqlite_reset(stmt : Sqlite3Stmt) -> Unit = "sqlite_reset"
 
 // Error handling
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_errcode(db : Sqlite3) -> Int = "sqlite_errcode"
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_errmsg(db : Sqlite3) -> Bytes = "sqlite_errmsg"
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_extended_errcode(db : Sqlite3) -> Int = "sqlite_extended_errcode"
 
 ///|
@@ -101,11 +90,9 @@ pub extern "C" fn sqlite_errstr(errcode : Int) -> Bytes = "sqlite_errstr"
 // Additional bind functions
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_bind_null(stmt : Sqlite3Stmt, idx : Int) -> Int = "sqlite_bind_null"
 
 ///|
-#borrow(stmt)
 extern "C" fn sqlite_bind_int64_ffi(
   stmt : Sqlite3Stmt,
   idx : Int64,
@@ -118,7 +105,6 @@ pub fn sqlite_bind_int64(stmt : Sqlite3Stmt, idx : Int, value : Int64) -> Int {
 }
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_bind_double(
   stmt : Sqlite3Stmt,
   idx : Int,
@@ -126,7 +112,7 @@ pub extern "C" fn sqlite_bind_double(
 ) -> Int = "sqlite_bind_double"
 
 ///|
-#borrow(stmt, blob)
+#borrow(blob)
 pub extern "C" fn sqlite_bind_blob(
   stmt : Sqlite3Stmt,
   idx : Int,
@@ -136,90 +122,73 @@ pub extern "C" fn sqlite_bind_blob(
 // Additional column retrieval functions
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_int64(stmt : Sqlite3Stmt, col : Int) -> Int64 = "sqlite_column_int64"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_double(stmt : Sqlite3Stmt, col : Int) -> Double = "sqlite_column_double"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_blob(stmt : Sqlite3Stmt, col : Int) -> Bytes = "sqlite_column_blob"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_bytes(stmt : Sqlite3Stmt, col : Int) -> Int = "sqlite_column_bytes"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_type(stmt : Sqlite3Stmt, col : Int) -> Int = "sqlite_column_type"
 
 // Metadata functions
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_count(stmt : Sqlite3Stmt) -> Int = "sqlite_column_count"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_column_name(stmt : Sqlite3Stmt, col : Int) -> Bytes = "sqlite_column_name"
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_changes(db : Sqlite3) -> Int = "sqlite_changes"
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_last_insert_rowid(db : Sqlite3) -> Int64 = "sqlite_last_insert_rowid"
 
 // Statement clear
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_clear_bindings(stmt : Sqlite3Stmt) -> Int = "sqlite_clear_bindings"
 
 // Concurrency control
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_busy_timeout(db : Sqlite3, ms : Int) -> Int = "sqlite_busy_timeout"
 
 // Transaction management
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_get_autocommit(db : Sqlite3) -> Int = "sqlite_get_autocommit"
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_total_changes(db : Sqlite3) -> Int = "sqlite_total_changes"
 
 // Statement introspection
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_sql(stmt : Sqlite3Stmt) -> Bytes = "sqlite_sql"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_bind_parameter_count(stmt : Sqlite3Stmt) -> Int = "sqlite_bind_parameter_count"
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_stmt_readonly(stmt : Sqlite3Stmt) -> Int = "sqlite_stmt_readonly"
 
 // Parameter names and indices
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_bind_parameter_name(
   stmt : Sqlite3Stmt,
   idx : Int,
 ) -> Bytes = "sqlite_bind_parameter_name"
 
 ///|
-#borrow(stmt, name)
+#borrow(name)
 pub extern "C" fn sqlite_bind_parameter_index(
   stmt : Sqlite3Stmt,
   name : Bytes,
@@ -228,29 +197,26 @@ pub extern "C" fn sqlite_bind_parameter_index(
 // Database metadata
 
 ///|
-#borrow(db, dbname)
+#borrow(dbname)
 pub extern "C" fn sqlite_db_filename(db : Sqlite3, dbname : Bytes) -> Bytes = "sqlite_db_filename"
 
 ///|
-#borrow(db, dbname)
+#borrow(dbname)
 pub extern "C" fn sqlite_db_readonly(db : Sqlite3, dbname : Bytes) -> Int = "sqlite_db_readonly"
 
 // SQL expansion
 
 ///|
-#borrow(stmt)
 pub extern "C" fn sqlite_expanded_sql(stmt : Sqlite3Stmt) -> Bytes = "sqlite_expanded_sql"
 
 // Query control
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_interrupt(db : Sqlite3) -> Unit = "sqlite_interrupt"
 
 // Resource limits
 
 ///|
-#borrow(db)
 pub extern "C" fn sqlite_limit(db : Sqlite3, id : Int, newVal : Int) -> Int = "sqlite_limit"
 
 // Constants
