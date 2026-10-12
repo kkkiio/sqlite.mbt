@@ -2,6 +2,16 @@
 
 SQLite database bindings for MoonBit - supports both **native** (C FFI) and **JavaScript** (Node.js) targets.
 
+This is a maintained fork of [mizchi/sqlite.mbt](https://github.com/mizchi/sqlite.mbt), published as `KKKIIO/sqlite`.
+
+## Why this fork?
+
+On the native target this library links against a **system / user-provided libsqlite3** instead of bundling SQLite sources. Your application chooses which SQLite build to link, so compile-time features such as FTS5 are whatever that build enables.
+
+If you just want a self-contained SQLite with no system dependency, prefer [moonbit-community/sqlite3.mbt](https://github.com/moonbit-community/sqlite3.mbt), which vendors a fixed SQLite version.
+
+This fork exists because MoonBit has no Cargo-style feature flags yet to configure a vendored SQLite build; it may be retired once the toolchain supports them.
+
 ## Features
 
 - Database management (open, close)
@@ -28,21 +38,30 @@ SQLite database bindings for MoonBit - supports both **native** (C FFI) and **Ja
 ## Installation
 
 ```bash
-moon add mizchi/sqlite
+moon add KKKIIO/sqlite
 ```
 
-Add to your `moon.pkg.json`:
+Import it in your package's `moon.pkg`:
 
-```json
-{
-  "import": ["mizchi/sqlite"],
-  "link": {
-    "native": {
-      "cc-link-flags": "-lsqlite3"
-    }
-  }
+```moonbit
+import {
+  "KKKIIO/sqlite",
 }
 ```
+
+On the native target, link flags are not inherited from dependencies, so the package that builds the executable (or test) must link libsqlite3 itself:
+
+```moonbit
+pkgtype(kind: "executable")
+
+options(
+  link: { "native": { "cc-link-flags": "-lsqlite3" } },
+)
+```
+
+To use a different SQLite build (e.g. Homebrew's, or one compiled with extra options), point the linker at it, for example `"cc-link-flags": "-L/opt/homebrew/opt/sqlite/lib -lsqlite3"`.
+
+See [`example/`](example/) for a complete project.
 
 ## Usage
 
@@ -88,12 +107,15 @@ db.close()
 
 ```bash
 # Native target
-moon build --target native
+moon check --target native
 moon test --target native
 
 # JavaScript target
-moon build --target js
+moon check --target js
 moon test --target js
+
+# Example (native)
+moon -C example run . --target native
 ```
 
 ## API

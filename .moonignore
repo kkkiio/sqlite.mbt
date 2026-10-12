@@ -1,0 +1,13 @@
+# Replaces .gitignore for `moon package` / `moon publish` in this directory.
+target/
+*.mbti
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+result
+result-*
+
+example/
+sqlite_bench.ts

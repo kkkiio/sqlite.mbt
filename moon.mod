@@ -1,6 +1,6 @@
-name = "mizchi/sqlite"
+name = "KKKIIO/sqlite"
 
-version = "0.3.1"
+version = "0.3.2"
 
 import {
   "moonbitlang/x@0.4.40",
@@ -8,18 +8,14 @@ import {
 
 readme = "README.md"
 
-repository = "https://github.com/mizchi/sqlite.mbt"
+repository = "https://github.com/kkkiio/sqlite.mbt"
 
 license = "MIT"
 
 keywords = [ "native", "sqlite", "js" ]
 
-description = "libsqlite3 bindings for MoonBit"
+description = "SQLite bindings for MoonBit that link against your own libsqlite3 (native) or node:sqlite (js)"
 
 source = "."
 
 preferred_target = "native"
-
-options(
-  exclude: [ "example", "sqlite_bench.ts" ],
-)
